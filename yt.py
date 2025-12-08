@@ -321,15 +321,23 @@ def download_videos():
         # Fetch more than video_count to account for skipped/failed videos
         ydl_opts_extract = {
             "playlistend": video_count * 5,  # Fetch 5x to handle failures and get enough content
-            "quiet": True,
-            "no_warnings": True,
+            "quiet": False,  # Show errors for debugging
+            "no_warnings": False,
         }
         
         downloaded_count = 0
+        entries = []
         
-        with YoutubeDL(ydl_opts_extract) as ydl:
-            info = ydl.extract_info(url, download=False)
-            entries = info.get("entries", [])
+        try:
+            with YoutubeDL(ydl_opts_extract) as ydl:
+                info = ydl.extract_info(url, download=False)
+                entries = info.get("entries", [])
+        except (DownloadError, ExtractorError) as e:
+            print(f"Warning: Error fetching channel playlist: {str(e)[:100]}")
+            print("Continuing with available entries...")
+        except Exception as e:
+            print(f"Warning: Error fetching channel playlist: {str(e)[:100]}")
+            print("Continuing with available entries...")
         
         # Process each entry separately with error handling
         for entry in entries:
@@ -385,6 +393,25 @@ def download_videos():
                     
                     with YoutubeDL(ytdl_opts_download) as ydl_download:
                         ydl_download.download([video_info["webpage_url"]])
+                    
+                    # Verify download was successful by checking if file exists
+                    downloaded_file = None
+                    for ext in ['.mp4', '.mkv', '.webm', '.mov', '.flv', '.m4a']:
+                        potential_file = os.path.join(output_dir, f"{title} [{video_id}]{ext}")
+                        if os.path.exists(potential_file):
+                            downloaded_file = potential_file
+                            break
+                    
+                    if not downloaded_file:
+                        print(f"Warning: Download completed but file not found for: {title}")
+                        continue
+                    
+                    # Verify file is not empty
+                    if os.path.getsize(downloaded_file) == 0:
+                        print(f"Warning: Downloaded file is empty for: {title}")
+                        os.remove(downloaded_file)
+                        continue
+                    
                     downloaded_count += 1
                     print(f"Downloaded {downloaded_count}/{video_count}: {title} [{video_id}]")
                     
