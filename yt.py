@@ -435,16 +435,22 @@ def download_videos():
 
                     # Download the video to the appropriate folder with retry logic for network timeouts
                     ytdl_opts_download = {
-                        "format": f"bestvideo[height<={QUALITY}]+bestaudio/best[height<={QUALITY}]",
+                        "format": f"best[height<={QUALITY}]",  # Fallback to best available format
                         "outtmpl": f"{output_dir}/%(title)s [%(id)s].%(ext)s",
                         "socket_timeout": 30,
                         "fragment_retries": 10,
                         "skip_unavailable_fragments": True,
+                        "http_headers": {
+                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                        },
+                        "quiet": False,  # Show output for debugging
+                        "no_warnings": False,
+                        "retries": 5,  # Retry failed requests
                     }
                     
-                    # Try downloading with retries for network timeouts
+                    # Try downloading with retries for network timeouts and 403 errors
                     download_attempts = 0
-                    max_download_attempts = 3
+                    max_download_attempts = 5
                     download_success = False
                     
                     while download_attempts < max_download_attempts and not download_success:
@@ -455,11 +461,13 @@ def download_videos():
                         except Exception as download_error:
                             download_attempts += 1
                             error_str = str(download_error).lower()
-                            if "timeout" in error_str or "connection" in error_str or "read timed out" in error_str:
+                            if "403" in error_str or "forbidden" in error_str or "timeout" in error_str or "connection" in error_str or "read timed out" in error_str:
                                 if download_attempts < max_download_attempts:
-                                    print(f"Network timeout, retrying... (attempt {download_attempts}/{max_download_attempts})")
-                                    time.sleep(5)
+                                    wait_time = 10 + (download_attempts * 5)  # Progressive backoff: 15, 20, 25, 30, 35 seconds
+                                    print(f"Rate limited (403 Forbidden). Waiting {wait_time}s before retry... (attempt {download_attempts}/{max_download_attempts})")
+                                    time.sleep(wait_time)
                                 else:
+                                    print(f"Max retries reached for: {title}")
                                     raise download_error
                             else:
                                 raise download_error
@@ -492,6 +500,11 @@ def download_videos():
                     # Download comments for this video
                     video_comments_dir = os.path.join(comments_dir, video_id)
                     download_comments(video_info["webpage_url"], video_info, video_comments_dir, channel_name)
+                    
+                    # Add delay between downloads to avoid rate limiting
+                    if downloaded_count < video_count:
+                        print(f"Waiting 5 seconds before next download...")
+                        time.sleep(5)
                     
             except (DownloadError, ExtractorError) as e:
                 error_msg = str(e).lower()
