@@ -323,6 +323,7 @@ def download_videos():
             "playlistend": video_count * 5,  # Fetch 5x to handle failures and get enough content
             "quiet": False,  # Show errors for debugging
             "no_warnings": False,
+            "skip_unavailable_videos": True,  # Skip private/unavailable videos instead of stopping
         }
         
         downloaded_count = 0
