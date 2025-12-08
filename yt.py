@@ -303,6 +303,7 @@ def download_videos():
     for channel in channels:
         channel_name = channel["channel_name"]
         video_count = channel["video_count"]
+        # Try both URL formats - newer @ format and older /channel/ format
         url = f"https://www.youtube.com/@{channel_name}/videos"
         
         # Create directory structure
@@ -324,6 +325,7 @@ def download_videos():
             "quiet": False,  # Show errors for debugging
             "no_warnings": False,
             "skip_unavailable_videos": True,  # Skip private/unavailable videos instead of stopping
+            "extract_flat": "in_playlist",  # Extract playlist without fetching each video info
         }
         
         downloaded_count = 0
@@ -333,6 +335,8 @@ def download_videos():
             with YoutubeDL(ydl_opts_extract) as ydl:
                 info = ydl.extract_info(url, download=False)
                 entries = info.get("entries", [])
+                if entries:
+                    print(f"Found {len(entries)} videos in playlist")
         except (DownloadError, ExtractorError) as e:
             print(f"Warning: Error fetching channel playlist: {str(e)[:100]}")
             print("Continuing with available entries...")
