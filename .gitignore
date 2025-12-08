@@ -1,2 +1,6 @@
 videos/
 channels.json
+cookies.txt
+.env
+*.pyc
+__pycache__/

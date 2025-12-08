@@ -6,6 +6,7 @@ import glob
 import time
 import shutil
 import socket
+import random
 
 # Set socket timeout to handle network timeouts better
 socket.setdefaulttimeout(30)
@@ -340,6 +341,14 @@ def download_videos():
             "extract_flat": "in_playlist",  # Extract playlist without fetching each video info
             "skip_unavailable_videos": True,  # Try to skip unavailable videos
             "ignoreerrors": True,  # Ignore individual video errors and continue
+            "http_headers": {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            },
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["android", "web"],
+                }
+            },
         }
         
         downloaded_count = 0
@@ -399,6 +408,14 @@ def download_videos():
                 ydl_opts_info = {
                     "quiet": True,
                     "no_warnings": True,
+                    "http_headers": {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                    },
+                    "extractor_args": {
+                        "youtube": {
+                            "player_client": ["android", "web"],
+                        }
+                    },
                 }
                 
                 # Construct the full URL if needed
@@ -445,7 +462,12 @@ def download_videos():
                         },
                         "quiet": False,  # Show output for debugging
                         "no_warnings": False,
-                        "retries": 5,  # Retry failed requests
+                        "retries": 10,  # Retry failed requests
+                        "extractor_args": {
+                            "youtube": {
+                                "player_client": ["android", "web"],
+                            }
+                        },
                     }
                     
                     # Try downloading with retries for network timeouts and 403 errors
@@ -503,8 +525,9 @@ def download_videos():
                     
                     # Add delay between downloads to avoid rate limiting
                     if downloaded_count < video_count:
-                        print(f"Waiting 5 seconds before next download...")
-                        time.sleep(5)
+                        sleep_time = random.uniform(10, 20)
+                        print(f"Waiting {sleep_time:.1f} seconds before next download to prevent rate limiting...")
+                        time.sleep(sleep_time)
                     
             except (DownloadError, ExtractorError) as e:
                 error_msg = str(e).lower()
