@@ -313,7 +313,7 @@ def download_videos():
         # Extract playlist info first (without downloading)
         # Fetch more than video_count to account for skipped/failed videos
         ydl_opts_extract = {
-            "playlistend": video_count * 3,  # Fetch 3x to handle failures
+            "playlistend": video_count * 5,  # Fetch 5x to handle failures and get enough content
             "quiet": True,
             "no_warnings": True,
         }
@@ -325,6 +325,10 @@ def download_videos():
             entries = info.get("entries", [])
             
             for entry in entries:
+                # Stop if we've downloaded enough videos
+                if downloaded_count >= video_count:
+                    break
+                
                 # Some entries might be None if unavailable
                 if not entry:
                     continue
@@ -375,16 +379,12 @@ def download_videos():
                     
                 except Exception as e:
                     error_msg = str(e).lower()
-                    if "private" in error_msg or "unavailable" in error_msg or "sign in" in error_msg:
-                        print(f"Skipping private/unavailable video")
+                    if "private" in error_msg or "unavailable" in error_msg or "sign in" in error_msg or "empty" in error_msg:
+                        print(f"Skipping private/unavailable/empty video")
                     else:
                         print(f"Skipping video due to error: {str(e)[:100]}")
                     # Continue to next video on any error
                     continue
-                
-                # Stop if we've downloaded enough videos
-                if downloaded_count >= video_count:
-                    break
         
         # Clean up old videos to maintain deque behavior
         cleanup_old_videos(videos_dir, shorts_dir, video_count, comments_dir)

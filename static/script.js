@@ -12,7 +12,7 @@ let isLoadingShorts = false;
 document.addEventListener('DOMContentLoaded', () => {
     setupTabs();
     loadVideos();
-    loadShorts();
+    loadShorts();  // Load initial batch of shorts
     setupSearch();
 });
 
@@ -45,10 +45,10 @@ function switchTab(tabName) {
 }
 
 async function openRandomShort() {
-    // Load all shorts if not already loaded
+    // Load first batch of shorts with pagination
     if (allShortsLoaded.length === 0) {
         try {
-            const response = await fetch(`${API_BASE}/api/shorts?skip=0&limit=1000`);
+            const response = await fetch(`${API_BASE}/api/shorts?skip=0&limit=${SHORTS_PER_PAGE * 5}`);
             const shorts = await response.json();
             if (shorts && shorts.length > 0) {
                 allShortsLoaded = shorts;
@@ -60,7 +60,7 @@ async function openRandomShort() {
     }
     
     if (allShortsLoaded.length > 0) {
-        // Pick a random short
+        // Pick a random short from loaded shorts
         const randomIndex = Math.floor(Math.random() * allShortsLoaded.length);
         shortsData = allShortsLoaded;
         currentShortIndex = randomIndex;
@@ -114,18 +114,24 @@ async function loadVideos() {
 }
 
 async function loadShorts() {
-    // Shorts are now loaded on-demand when opening the modal
-    // This function is kept for backward compatibility but does minimal work
-    if (allShortsLoaded.length === 0) {
-        try {
-            const response = await fetch(`${API_BASE}/api/shorts?skip=0&limit=1000`);
-            const shorts = await response.json();
-            if (shorts && shorts.length > 0) {
-                allShortsLoaded = shorts;
-            }
-        } catch (error) {
-            console.error('Error loading shorts:', error);
+    // Lazy load shorts with pagination
+    if (isLoadingShorts) return;
+    isLoadingShorts = true;
+
+    try {
+        const skip = shortsPage * SHORTS_PER_PAGE;
+        const response = await fetch(`${API_BASE}/api/shorts?skip=${skip}&limit=${SHORTS_PER_PAGE}`);
+        const shorts = await response.json();
+        
+        if (shorts && shorts.length > 0) {
+            // Append to existing shorts
+            allShortsLoaded = allShortsLoaded.concat(shorts);
+            shortsPage++;
         }
+    } catch (error) {
+        console.error('Error loading shorts:', error);
+    } finally {
+        isLoadingShorts = false;
     }
 }
 
@@ -323,11 +329,14 @@ async function nextShort() {
     const player = document.getElementById('shorts-player');
     player.pause();
     
+    // Use allShortsLoaded for navigation instead of shortsData
+    shortsData = allShortsLoaded;
+    
     if (currentShortIndex < shortsData.length - 1) {
         currentShortIndex++;
         await openShortsModal(shortsData[currentShortIndex], true);
         
-        // Load more shorts if needed
+        // Load more shorts if getting close to end
         if (currentShortIndex >= shortsData.length - 5) {
             loadShorts();
         }
@@ -337,6 +346,9 @@ async function nextShort() {
 async function previousShort() {
     const player = document.getElementById('shorts-player');
     player.pause();
+    
+    // Use allShortsLoaded for navigation instead of shortsData
+    shortsData = allShortsLoaded;
     
     if (currentShortIndex > 0) {
         currentShortIndex--;
