@@ -325,6 +325,11 @@ def download_videos():
         # Get already downloaded videos
         downloaded = get_downloaded_videos(videos_dir, shorts_dir)
         print(f"Already downloaded for {channel_name}: {len(downloaded)} videos")
+        
+        # Skip this channel if we already have enough videos
+        if len(downloaded) >= video_count:
+            print(f"Already have {len(downloaded)} videos (requested: {video_count}). Skipping {channel_name}.")
+            continue
 
         # Extract playlist info first (without downloading)
         # Fetch more than video_count to account for skipped/failed videos
