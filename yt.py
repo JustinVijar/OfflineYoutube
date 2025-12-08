@@ -5,6 +5,10 @@ import os
 import glob
 import time
 import shutil
+import socket
+
+# Set socket timeout to handle network timeouts better
+socket.setdefaulttimeout(30)
 
 # Configuration
 DOWNLOAD_COMMENTS = True
@@ -424,14 +428,36 @@ def download_videos():
                     else:
                         output_dir = videos_dir
 
-                    # Download the video to the appropriate folder
+                    # Download the video to the appropriate folder with retry logic for network timeouts
                     ytdl_opts_download = {
                         "format": f"bestvideo[height<={QUALITY}]+bestaudio/best[height<={QUALITY}]",
                         "outtmpl": f"{output_dir}/%(title)s [%(id)s].%(ext)s",
+                        "socket_timeout": 30,
+                        "fragment_retries": 10,
+                        "skip_unavailable_fragments": True,
                     }
                     
-                    with YoutubeDL(ytdl_opts_download) as ydl_download:
-                        ydl_download.download([video_info["webpage_url"]])
+                    # Try downloading with retries for network timeouts
+                    download_attempts = 0
+                    max_download_attempts = 3
+                    download_success = False
+                    
+                    while download_attempts < max_download_attempts and not download_success:
+                        try:
+                            with YoutubeDL(ytdl_opts_download) as ydl_download:
+                                ydl_download.download([video_info["webpage_url"]])
+                            download_success = True
+                        except Exception as download_error:
+                            download_attempts += 1
+                            error_str = str(download_error).lower()
+                            if "timeout" in error_str or "connection" in error_str or "read timed out" in error_str:
+                                if download_attempts < max_download_attempts:
+                                    print(f"Network timeout, retrying... (attempt {download_attempts}/{max_download_attempts})")
+                                    time.sleep(5)
+                                else:
+                                    raise download_error
+                            else:
+                                raise download_error
                     
                     # Verify download was successful by checking if file exists
                     # Use video_id in search since title might have encoding issues
