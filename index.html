@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline YouTube</title>
+    <link rel="stylesheet" href="static/styles.css">
+</head>
+<body>
+    <header>
+        <div class="logo">🎬 Offline YouTube</div>
+    </header>
+
+    <div class="tabs-container">
+        <div class="tab active" data-tab="videos">📹 Videos</div>
+        <div class="tab" data-tab="shorts">🎥 Shorts</div>
+        <div class="tab" data-tab="search">🔍 Search</div>
+    </div>
+
+    <div class="container">
+        <!-- Videos Tab -->
+        <div id="videos-tab" class="tab-content active">
+            <div id="videos-grid" class="videos-grid"></div>
+            <button class="load-more-btn" id="load-more-videos" style="display: none;" onclick="loadVideos()">Load More Videos</button>
+        </div>
+
+        <!-- Shorts Tab -->
+        <div id="shorts-tab" class="tab-content">
+            <!-- Shorts are displayed in modal only, no grid -->
+        </div>
+
+        <!-- Search Tab -->
+        <div id="search-tab" class="tab-content">
+            <div class="search-container">
+                <input type="text" id="search-input" class="search-bar" placeholder="Search videos, shorts, or channels...">
+                <div id="search-results" class="search-results"></div>
+                <button class="load-more-btn search-load-more" style="display: none;" onclick="loadSearchResults()">Load More Results</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Video Player Modal -->
+    <div class="modal" id="video-modal">
+        <div class="player-container">
+            <button class="close-player" onclick="closeVideoModal()">✕ Close</button>
+            <video id="video-player" class="fullscreen-video" controls></video>
+        </div>
+        <div class="video-details">
+            <div class="video-meta">
+                <div class="video-title-large" id="modal-title"></div>
+                <div class="video-stats">
+                    <span id="modal-channel"></span>
+                    <span id="modal-duration"></span>
+                </div>
+            </div>
+            <div class="comments-section">
+                <div class="comments-header">Comments</div>
+                <div id="comments-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shorts Player Modal -->
+    <div class="shorts-modal" id="shorts-modal">
+        <button class="close-shorts-modal" onclick="closeShortsModal()">✕</button>
+        <button class="shorts-nav-arrow prev" onclick="previousShort()">▲</button>
+        <button class="shorts-nav-arrow next" onclick="nextShort()">▼</button>
+        <button class="shorts-comment-toggle" id="comment-toggle" onclick="toggleShortsComments()">💬</button>
+        <div class="shorts-player-wrapper">
+            <div class="shorts-video-container">
+                <video id="shorts-player" controls></video>
+            </div>
+            <div class="shorts-comments-panel" id="shorts-comments-panel" style="display: none;">
+                <div class="shorts-comments-header">
+                    <span>Comments</span>
+                    <span id="shorts-comment-count">0</span>
+                </div>
+                <div class="shorts-comments-list" id="shorts-comments-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="static/script.js"></script>
+</body>
+</html>
