@@ -1,4 +1,5 @@
 from yt_dlp import YoutubeDL
+from yt_dlp.utils import DownloadError, ExtractorError
 import json
 import os
 import glob
@@ -383,12 +384,16 @@ def download_videos():
                     video_comments_dir = os.path.join(comments_dir, video_id)
                     download_comments(video_info["webpage_url"], video_info, video_comments_dir, channel_name)
                     
-                except Exception as e:
+                except (DownloadError, ExtractorError) as e:
                     error_msg = str(e).lower()
                     if "private" in error_msg or "unavailable" in error_msg or "sign in" in error_msg or "empty" in error_msg:
                         print(f"Skipping private/unavailable/empty video")
                     else:
                         print(f"Skipping video due to error: {str(e)[:100]}")
+                    # Continue to next video on any error
+                    continue
+                except Exception as e:
+                    print(f"Skipping video due to error: {str(e)[:100]}")
                     # Continue to next video on any error
                     continue
         
