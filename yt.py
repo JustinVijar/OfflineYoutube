@@ -348,30 +348,22 @@ def download_videos():
                     if video_info.get("is_live") or video_info.get("live_status") in ("is_live", "upcoming"):
                         print(f"Skipping live video: {title} [{video_id}]")
                         continue
-                except Exception as e:
-                    error_msg = str(e).lower()
-                    if "private" in error_msg or "unavailable" in error_msg:
-                        print(f"Skipping private/unavailable video: {e}")
+
+                    # Determine if it's a short based on aspect ratio
+                    is_short = w and h and h > w
+                    
+                    if is_short:
+                        print(f"ITS A SHORTS: {title} [{video_id}]")
+                        output_dir = shorts_dir
                     else:
-                        print(f"Error extracting video info: {e}")
-                    continue
+                        output_dir = videos_dir
 
-                # Determine if it's a short based on aspect ratio
-                is_short = w and h and h > w
-                
-                if is_short:
-                    print(f"ITS A SHORTS: {title} [{video_id}]")
-                    output_dir = shorts_dir
-                else:
-                    output_dir = videos_dir
-
-                # Download the video to the appropriate folder
-                ytdl_opts_download = {
-                    "format": f"bestvideo[height<={QUALITY}]+bestaudio/best[height<={QUALITY}]",
-                    "outtmpl": f"{output_dir}/%(title)s [%(id)s].%(ext)s",
-                }
-                
-                try:
+                    # Download the video to the appropriate folder
+                    ytdl_opts_download = {
+                        "format": f"bestvideo[height<={QUALITY}]+bestaudio/best[height<={QUALITY}]",
+                        "outtmpl": f"{output_dir}/%(title)s [%(id)s].%(ext)s",
+                    }
+                    
                     with YoutubeDL(ytdl_opts_download) as ydl_download:
                         ydl_download.download([video_info["webpage_url"]])
                     downloaded_count += 1
@@ -382,8 +374,12 @@ def download_videos():
                     download_comments(video_info["webpage_url"], video_info, video_comments_dir, channel_name)
                     
                 except Exception as e:
-                    print(f"Failed to download {title}: {e}")
-                    # Continue to next video on failure
+                    error_msg = str(e).lower()
+                    if "private" in error_msg or "unavailable" in error_msg or "sign in" in error_msg:
+                        print(f"Skipping private/unavailable video")
+                    else:
+                        print(f"Skipping video due to error: {str(e)[:100]}")
+                    # Continue to next video on any error
                     continue
                 
                 # Stop if we've downloaded enough videos
