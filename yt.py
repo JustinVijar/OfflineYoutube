@@ -330,17 +330,25 @@ def download_videos():
         with YoutubeDL(ydl_opts_extract) as ydl:
             info = ydl.extract_info(url, download=False)
             entries = info.get("entries", [])
+        
+        # Process each entry separately with error handling
+        for entry in entries:
+            # Stop if we've downloaded enough videos
+            if downloaded_count >= video_count:
+                break
             
-            for entry in entries:
-                # Stop if we've downloaded enough videos
-                if downloaded_count >= video_count:
-                    break
-                
-                # Some entries might be None if unavailable
-                if not entry:
-                    continue
+            # Some entries might be None if unavailable
+            if not entry:
+                continue
 
-                try:
+            try:
+                # Create a fresh YoutubeDL instance for each video to avoid context issues
+                ydl_opts_info = {
+                    "quiet": True,
+                    "no_warnings": True,
+                }
+                
+                with YoutubeDL(ydl_opts_info) as ydl:
                     # Extract full info for each video to get dimensions
                     video_info = ydl.extract_info(entry["webpage_url"], download=False)
                     w = video_info.get('width')
@@ -384,18 +392,18 @@ def download_videos():
                     video_comments_dir = os.path.join(comments_dir, video_id)
                     download_comments(video_info["webpage_url"], video_info, video_comments_dir, channel_name)
                     
-                except (DownloadError, ExtractorError) as e:
-                    error_msg = str(e).lower()
-                    if "private" in error_msg or "unavailable" in error_msg or "sign in" in error_msg or "empty" in error_msg:
-                        print(f"Skipping private/unavailable/empty video")
-                    else:
-                        print(f"Skipping video due to error: {str(e)[:100]}")
-                    # Continue to next video on any error
-                    continue
-                except Exception as e:
+            except (DownloadError, ExtractorError) as e:
+                error_msg = str(e).lower()
+                if "private" in error_msg or "unavailable" in error_msg or "sign in" in error_msg or "empty" in error_msg:
+                    print(f"Skipping private/unavailable/empty video")
+                else:
                     print(f"Skipping video due to error: {str(e)[:100]}")
-                    # Continue to next video on any error
-                    continue
+                # Continue to next video on any error
+                continue
+            except Exception as e:
+                print(f"Skipping video due to error: {str(e)[:100]}")
+                # Continue to next video on any error
+                continue
         
         # Clean up old videos to maintain deque behavior
         cleanup_old_videos(videos_dir, shorts_dir, video_count, comments_dir)
