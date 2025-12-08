@@ -303,8 +303,12 @@ def download_videos():
     for channel in channels:
         channel_name = channel["channel_name"]
         video_count = channel["video_count"]
-        # Try both URL formats - newer @ format and older /channel/ format
-        url = f"https://www.youtube.com/@{channel_name}/videos"
+        
+        # Try both URL formats - newer @ format and older /c/ format as fallback
+        urls_to_try = [
+            f"https://www.youtube.com/@{channel_name}/videos",
+            f"https://www.youtube.com/c/{channel_name}/videos",
+        ]
         
         # Create directory structure
         videos_dir = f"videos/{channel_name}/videos"
@@ -321,28 +325,41 @@ def download_videos():
         # Extract playlist info first (without downloading)
         # Fetch more than video_count to account for skipped/failed videos
         ydl_opts_extract = {
-            "playlistend": video_count * 5,  # Fetch 5x to handle failures and get enough content
-            "quiet": False,  # Show errors for debugging
-            "no_warnings": False,
-            "skip_unavailable_videos": True,  # Skip private/unavailable videos instead of stopping
+            "playlistend": video_count * 10,  # Fetch 10x to handle failures and skip private videos
+            "quiet": True,  # Suppress debug output during extraction
+            "no_warnings": True,
             "extract_flat": "in_playlist",  # Extract playlist without fetching each video info
+            "skip_unavailable_videos": True,  # Try to skip unavailable videos
+            "ignoreerrors": True,  # Ignore individual video errors and continue
         }
         
         downloaded_count = 0
         entries = []
+        url = None
         
-        try:
-            with YoutubeDL(ydl_opts_extract) as ydl:
-                info = ydl.extract_info(url, download=False)
-                entries = info.get("entries", [])
-                if entries:
-                    print(f"Found {len(entries)} videos in playlist")
-        except (DownloadError, ExtractorError) as e:
-            print(f"Warning: Error fetching channel playlist: {str(e)[:100]}")
-            print("Continuing with available entries...")
-        except Exception as e:
-            print(f"Warning: Error fetching channel playlist: {str(e)[:100]}")
-            print("Continuing with available entries...")
+        # Try each URL format until we get entries
+        for try_url in urls_to_try:
+            try:
+                with YoutubeDL(ydl_opts_extract) as ydl:
+                    info = ydl.extract_info(try_url, download=False)
+                    entries = info.get("entries", [])
+                    # Filter out None entries that might be from skipped/unavailable videos
+                    entries = [e for e in entries if e is not None]
+                    if entries:
+                        url = try_url
+                        print(f"Found {len(entries)} videos in playlist using {try_url}")
+                        break
+            except (DownloadError, ExtractorError) as e:
+                continue
+            except Exception as e:
+                continue
+        
+        # If still no entries found, show warning and skip
+        if not entries:
+            print(f"Warning: No videos found in {channel_name}. Could not fetch from any URL format.")
+            print(f"Tried: {', '.join(urls_to_try)}")
+            print(f"Skipping {channel_name} - Please check if the channel is public or if the channel name is correct.")
+            continue  # Skip to next channel
         
         # Process each entry separately with error handling
         for entry in entries:
@@ -355,15 +372,32 @@ def download_videos():
                 continue
 
             try:
+                # Handle both flat and full entry formats
+                video_id = None
+                if isinstance(entry, dict) and "id" in entry:
+                    video_id = entry["id"]
+                elif isinstance(entry, dict) and "webpage_url" in entry:
+                    video_id = entry["webpage_url"].split("v=")[-1]
+                else:
+                    # If it's a string (just video ID)
+                    video_id = str(entry)
+                
+                if not video_id:
+                    print(f"Skipping entry without video ID: {entry}")
+                    continue
+                
                 # Create a fresh YoutubeDL instance for each video to avoid context issues
                 ydl_opts_info = {
                     "quiet": True,
                     "no_warnings": True,
                 }
                 
+                # Construct the full URL if needed
+                video_url = f"https://www.youtube.com/watch?v={video_id}"
+                
                 with YoutubeDL(ydl_opts_info) as ydl:
                     # Extract full info for each video to get dimensions
-                    video_info = ydl.extract_info(entry["webpage_url"], download=False)
+                    video_info = ydl.extract_info(video_url, download=False)
                     w = video_info.get('width')
                     h = video_info.get('height')
                     title = video_info.get('title')
@@ -400,15 +434,19 @@ def download_videos():
                         ydl_download.download([video_info["webpage_url"]])
                     
                     # Verify download was successful by checking if file exists
+                    # Use video_id in search since title might have encoding issues
                     downloaded_file = None
-                    for ext in ['.mp4', '.mkv', '.webm', '.mov', '.flv', '.m4a']:
-                        potential_file = os.path.join(output_dir, f"{title} [{video_id}]{ext}")
-                        if os.path.exists(potential_file):
-                            downloaded_file = potential_file
-                            break
+                    try:
+                        for file in os.listdir(output_dir):
+                            if video_id in file and any(file.endswith(ext) for ext in ['.mp4', '.mkv', '.webm', '.mov', '.flv', '.m4a']):
+                                downloaded_file = os.path.join(output_dir, file)
+                                break
+                    except Exception as e:
+                        print(f"Warning: Error checking for downloaded file: {str(e)[:100]}")
+                        continue
                     
                     if not downloaded_file:
-                        print(f"Warning: Download completed but file not found for: {title}")
+                        print(f"Warning: Download completed but file not found for: {title} [{video_id}]")
                         continue
                     
                     # Verify file is not empty
