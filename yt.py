@@ -170,6 +170,12 @@ def download_comments(video_url, video_info, comments_dir, channel_name):
     if not DOWNLOAD_COMMENTS:
         return
     
+    # Check if comments already exist
+    top_dir = os.path.join(comments_dir, "top")
+    if os.path.exists(top_dir) and len(os.listdir(top_dir)) > 0:
+        print(f"Comments already downloaded for: {video_info.get('title')}")
+        return
+    
     print(f"Downloading comments for: {video_info.get('title')}")
     
     create_comment_structure(comments_dir)
