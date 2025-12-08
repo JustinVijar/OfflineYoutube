@@ -329,23 +329,31 @@ def download_videos():
                 if not entry:
                     continue
 
-                # Extract full info for each video to get dimensions
-                video_info = ydl.extract_info(entry["webpage_url"], download=False)
-                w = video_info.get('width')
-                h = video_info.get('height')
-                title = video_info.get('title')
-                video_id = video_info.get('id')
+                try:
+                    # Extract full info for each video to get dimensions
+                    video_info = ydl.extract_info(entry["webpage_url"], download=False)
+                    w = video_info.get('width')
+                    h = video_info.get('height')
+                    title = video_info.get('title')
+                    video_id = video_info.get('id')
 
-                print(f"{title} [{video_id}] Dimensions: {w} x {h}")
+                    print(f"{title} [{video_id}] Dimensions: {w} x {h}")
 
-                # Skip if already downloaded
-                if title in downloaded:
-                    print(f"Already downloaded: {title} [{video_id}]")
-                    continue
+                    # Skip if already downloaded
+                    if title in downloaded:
+                        print(f"Already downloaded: {title} [{video_id}]")
+                        continue
 
-                # Skip live videos
-                if video_info.get("is_live") or video_info.get("live_status") in ("is_live", "upcoming"):
-                    print(f"Skipping live video: {title} [{video_id}]")
+                    # Skip live videos
+                    if video_info.get("is_live") or video_info.get("live_status") in ("is_live", "upcoming"):
+                        print(f"Skipping live video: {title} [{video_id}]")
+                        continue
+                except Exception as e:
+                    error_msg = str(e).lower()
+                    if "private" in error_msg or "unavailable" in error_msg:
+                        print(f"Skipping private/unavailable video: {e}")
+                    else:
+                        print(f"Error extracting video info: {e}")
                     continue
 
                 # Determine if it's a short based on aspect ratio

@@ -1,5 +1,5 @@
 // Dynamically set API_BASE based on current host
-const API_BASE = `http://${window.location.hostname}:8000`;
+const API_BASE = `http://${window.location.hostname}:16969`;
 let currentTab = 'videos';
 let videosPage = 0;
 let shortsPage = 0;
@@ -101,7 +101,7 @@ async function loadVideos() {
             document.getElementById('videos-grid').innerHTML = `
                 <div style="grid-column: 1/-1;">
                     <div class="error-message">
-                        Error loading videos. Make sure the backend is running on <strong>http://localhost:8000</strong>
+                        Error loading videos. Make sure the backend is running on <strong>http://localhost:16969</strong>
                         <br><small>${error.message}</small>
                     </div>
                 </div>

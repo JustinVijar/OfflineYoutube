@@ -48,11 +48,11 @@ Videos and shorts will be saved to the `videos/` directory with comments.
 python backend.py
 ```
 
-The server runs on `http://localhost:8000`
+The server runs on `http://localhost:16969`
 
 ## Usage
 
-- Open `http://localhost:8000` in your browser
+- Open `http://localhost:16969` in your browser
 - Browse the **Videos** tab to watch downloaded videos
 - Switch to **Shorts** tab for vertical video experience
 - Use **Search** tab to find content by title or channel name
@@ -80,7 +80,7 @@ Edit `yt.py` to customize:
 
 To access from another device on your network:
 1. Find your machine's IP address
-2. Open `http://<your-ip>:8000` on another device
+2. Open `http://<your-ip>:16969` on another device
 
 ## Notes
 
