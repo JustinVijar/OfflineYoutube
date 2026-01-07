@@ -7,9 +7,21 @@ import time
 import shutil
 import socket
 import random
+import logging
+from datetime import datetime
 
 # Set socket timeout to handle network timeouts better
 socket.setdefaulttimeout(30)
+
+# Setup logging - reset log file on each execution
+logging.basicConfig(
+    level=logging.ERROR,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('yt.log', mode='w'),  # 'w' mode resets the file
+        logging.StreamHandler()  # Also print to console
+    ]
+)
 
 # Configuration
 DOWNLOAD_COMMENTS = True
@@ -87,7 +99,9 @@ def cleanup_old_videos(videos_dir, shorts_dir, video_count, comments_dir):
                 print(f"Deleted old video: {os.path.basename(video_file)}")
                 
             except Exception as e:
-                print(f"Failed to delete {all_files[i][1]}: {e}")
+                error_msg = f"Failed to delete {all_files[i][1]}: {e}"
+                print(error_msg)
+                logging.error(error_msg)
     else:
         print(f"No cleanup needed")
 
@@ -176,10 +190,30 @@ def download_comments(video_url, video_info, comments_dir, channel_name):
     if not DOWNLOAD_COMMENTS:
         return
     
-    # Check if comments already exist
+    # Check if comments already exist and are recent (less than 7 days old)
     top_dir = os.path.join(comments_dir, "top")
-    if os.path.exists(top_dir) and len(os.listdir(top_dir)) > 0:
-        print(f"Comments already downloaded for: {video_info.get('title')}")
+    meta_file = os.path.join(comments_dir, "meta.json")
+    
+    # Check if we should update comments
+    should_update = True
+    if os.path.exists(top_dir) and len(os.listdir(top_dir)) > 0 and os.path.exists(meta_file):
+        try:
+            with open(meta_file, 'r', encoding='utf-8') as f:
+                meta = json.load(f)
+                downloaded_at = meta.get('downloaded_at', 0)
+                # Update if comments are older than 7 days (604800 seconds)
+                age = int(time.time()) - downloaded_at
+                if age < 604800:  # 7 days
+                    print(f"Comments are recent ({age // 86400} days old), skipping: {video_info.get('title')}")
+                    should_update = False
+                else:
+                    print(f"Comments are old ({age // 86400} days old), updating: {video_info.get('title')}")
+                    # Delete old comments to fetch new ones
+                    shutil.rmtree(comments_dir)
+        except Exception as e:
+            logging.error(f"Error checking comment age: {e}")
+    
+    if not should_update:
         return
     
     print(f"Downloading comments for: {video_info.get('title')}")
@@ -289,15 +323,21 @@ def download_comments(video_url, video_info, comments_dir, channel_name):
                 
             except Exception as e:
                 retry_count += 1
-                print(f"Failed to download comments (attempt {retry_count}/{max_retries}): {e}")
+                error_msg = f"Failed to download comments (attempt {retry_count}/{max_retries}): {e}"
+                print(error_msg)
+                logging.error(error_msg)
                 if retry_count < max_retries:
                     time.sleep(1)  # Wait before retry
                 continue
         
-        print(f"Skipping comments after {max_retries} failed attempts")
+        error_msg = f"Skipping comments after {max_retries} failed attempts"
+        print(error_msg)
+        logging.error(error_msg)
     
     except Exception as e:
-        print(f"Error downloading comments: {e}")
+        error_msg = f"Error downloading comments: {e}"
+        print(error_msg)
+        logging.error(error_msg)
         print(f"Skipping comments for this video")
 
 def download_videos():
@@ -326,6 +366,37 @@ def download_videos():
         # Get already downloaded videos
         downloaded = get_downloaded_videos(videos_dir, shorts_dir)
         print(f"Already downloaded for {channel_name}: {len(downloaded)} videos")
+        
+        # Check for existing videos and update their comments if needed
+        if downloaded:
+            print(f"Checking for comment updates on {len(downloaded)} existing videos...")
+            for video_filename, (mtime, filepath) in downloaded.items():
+                # Extract video_id from filename: "Title [video_id]"
+                if '[' in video_filename and ']' in video_filename:
+                    video_id = video_filename.split('[')[-1].rstrip(']').strip()
+                    video_comments_dir = os.path.join(comments_dir, video_id)
+                    
+                    # Check if meta.json exists to get video info
+                    meta_file = os.path.join(video_comments_dir, "meta.json")
+                    if os.path.exists(meta_file):
+                        try:
+                            with open(meta_file, 'r', encoding='utf-8') as f:
+                                meta = json.load(f)
+                                # Construct video URL from video_id
+                                video_url = f"https://www.youtube.com/watch?v={video_id}"
+                                # Create a minimal video_info dict from meta
+                                video_info = {
+                                    'id': meta.get('video_id'),
+                                    'title': meta.get('title'),
+                                    'channel': meta.get('channel'),
+                                    'upload_date': meta.get('upload_date'),
+                                    'duration': meta.get('duration'),
+                                    'comments': meta.get('comment_count_estimated')
+                                }
+                                # Try to update comments (will skip if recent)
+                                download_comments(video_url, video_info, video_comments_dir, channel_name)
+                        except Exception as e:
+                            logging.error(f"Error updating comments for {video_filename}: {e}")
         
         # Skip this channel if we already have enough videos
         if len(downloaded) >= video_count:
@@ -368,14 +439,17 @@ def download_videos():
                         print(f"Found {len(entries)} videos in playlist using {try_url}")
                         break
             except (DownloadError, ExtractorError) as e:
+                logging.error(f"DownloadError/ExtractorError trying {try_url}: {e}")
                 continue
             except Exception as e:
+                logging.error(f"Error trying {try_url}: {e}")
                 continue
         
         # If still no entries found, show warning and skip
         if not entries:
-            print(f"Warning: No videos found in {channel_name}. Could not fetch from any URL format.")
-            print(f"Tried: {', '.join(urls_to_try)}")
+            error_msg = f"Warning: No videos found in {channel_name}. Could not fetch from any URL format. Tried: {', '.join(urls_to_try)}"
+            print(error_msg)
+            logging.error(error_msg)
             print(f"Skipping {channel_name} - Please check if the channel is public or if the channel name is correct.")
             continue  # Skip to next channel
         
@@ -489,9 +563,12 @@ def download_videos():
                                     print(f"Rate limited (403 Forbidden). Waiting {wait_time}s before retry... (attempt {download_attempts}/{max_download_attempts})")
                                     time.sleep(wait_time)
                                 else:
-                                    print(f"Max retries reached for: {title}")
+                                    error_msg = f"Max retries reached for: {title}"
+                                    print(error_msg)
+                                    logging.error(error_msg)
                                     raise download_error
                             else:
+                                logging.error(f"Download error for {title}: {download_error}")
                                 raise download_error
                     
                     # Verify download was successful by checking if file exists
@@ -503,16 +580,22 @@ def download_videos():
                                 downloaded_file = os.path.join(output_dir, file)
                                 break
                     except Exception as e:
-                        print(f"Warning: Error checking for downloaded file: {str(e)[:100]}")
+                        error_msg = f"Warning: Error checking for downloaded file: {str(e)[:100]}"
+                        print(error_msg)
+                        logging.error(error_msg)
                         continue
                     
                     if not downloaded_file:
-                        print(f"Warning: Download completed but file not found for: {title} [{video_id}]")
+                        error_msg = f"Warning: Download completed but file not found for: {title} [{video_id}]"
+                        print(error_msg)
+                        logging.error(error_msg)
                         continue
                     
                     # Verify file is not empty
                     if os.path.getsize(downloaded_file) == 0:
-                        print(f"Warning: Downloaded file is empty for: {title}")
+                        error_msg = f"Warning: Downloaded file is empty for: {title}"
+                        print(error_msg)
+                        logging.error(error_msg)
                         os.remove(downloaded_file)
                         continue
                     
@@ -532,13 +615,19 @@ def download_videos():
             except (DownloadError, ExtractorError) as e:
                 error_msg = str(e).lower()
                 if "private" in error_msg or "unavailable" in error_msg or "sign in" in error_msg or "empty" in error_msg:
+                    log_msg = f"Skipping private/unavailable/empty video: {str(e)[:100]}"
                     print(f"Skipping private/unavailable/empty video")
+                    logging.error(log_msg)
                 else:
-                    print(f"Skipping video due to error: {str(e)[:100]}")
+                    log_msg = f"Skipping video due to DownloadError/ExtractorError: {str(e)[:100]}"
+                    print(log_msg)
+                    logging.error(log_msg)
                 # Continue to next video on any error
                 continue
             except Exception as e:
-                print(f"Skipping video due to error: {str(e)[:100]}")
+                log_msg = f"Skipping video due to unexpected error: {str(e)[:100]}"
+                print(log_msg)
+                logging.error(log_msg)
                 # Continue to next video on any error
                 continue
         
