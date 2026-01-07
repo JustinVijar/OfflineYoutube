@@ -211,7 +211,7 @@ function renderVideos(videos) {
         card.className = 'video-card';
         card.innerHTML = `
             <div class="video-thumbnail">
-                <video muted playsinline></video>
+                <video muted playsinline preload="none"></video>
                 <div class="play-icon">▶</div>
                 <div class="duration">${formatDuration(video.duration)}</div>
             </div>
@@ -222,12 +222,21 @@ function renderVideos(videos) {
         `;
         
         const videoElement = card.querySelector('video');
-        videoElement.src = `${API_BASE}/api/video/${video.video_id}`;
-        videoElement.addEventListener('click', (e) => e.stopPropagation());
-        videoElement.addEventListener('loadedmetadata', () => {
-            videoElement.currentTime = videoElement.duration * 0.3;
-        });
+        videoElement.dataset.videoId = video.video_id;
         
+        // Lazy load video preview on hover
+        let previewLoaded = false;
+        card.addEventListener('mouseenter', () => {
+            if (!previewLoaded) {
+                previewLoaded = true;
+                videoElement.src = `${API_BASE}/api/video/${video.video_id}`;
+                videoElement.addEventListener('loadedmetadata', () => {
+                    videoElement.currentTime = videoElement.duration * 0.3;
+                });
+            }
+        }, { once: false });
+        
+        videoElement.addEventListener('click', (e) => e.stopPropagation());
         card.addEventListener('click', () => openVideoModal(video));
         container.appendChild(card);
     });
