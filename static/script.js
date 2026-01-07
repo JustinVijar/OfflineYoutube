@@ -134,7 +134,10 @@ async function loadContent() {
 
 // Load more videos (called by button click)
 async function loadMoreVideos() {
-    if (isLoadingContent || !hasMoreVideos) return;
+    if (isLoadingContent || !hasMoreVideos) {
+        console.log('Load more videos blocked:', { isLoadingContent, hasMoreVideos });
+        return;
+    }
     isLoadingContent = true;
 
     const btn = document.getElementById('load-more-videos');
@@ -142,6 +145,8 @@ async function loadMoreVideos() {
 
     try {
         const videosSkip = videosPage * VIDEOS_PER_PAGE;
+        
+        console.log('Loading more videos:', { videosPage, videosSkip, VIDEOS_PER_PAGE });
         
         const response = await fetch(
             `${API_BASE}/api/content?videos_skip=${videosSkip}&videos_limit=${VIDEOS_PER_PAGE}&shorts_skip=0&shorts_limit=0`
@@ -152,6 +157,8 @@ async function loadMoreVideos() {
         }
         
         const data = await response.json();
+        
+        console.log('Received data:', { videoCount: data.videos?.length, has_more: data.has_more_videos });
         
         if (data.videos && data.videos.length > 0) {
             renderVideos(data.videos);
