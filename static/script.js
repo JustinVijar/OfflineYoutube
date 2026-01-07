@@ -231,7 +231,7 @@ function renderVideos(videos) {
         card.className = 'video-card';
         card.innerHTML = `
             <div class="video-thumbnail">
-                <video muted playsinline preload="metadata"></video>
+                <img src="${API_BASE}/api/thumbnail/${video.video_id}" alt="${escapeHtml(video.title)}" loading="lazy" />
                 <div class="play-icon">▶</div>
                 <div class="duration">${formatDuration(video.duration)}</div>
             </div>
@@ -241,18 +241,6 @@ function renderVideos(videos) {
             </div>
         `;
         
-        const videoElement = card.querySelector('video');
-        // Set the video source with fragment to load at specific time for thumbnail
-        videoElement.src = `${API_BASE}/api/video/${video.video_id}#t=1`;
-        
-        // When metadata is loaded, seek to 1 second for thumbnail
-        videoElement.addEventListener('loadedmetadata', () => {
-            // Seek to 1 second or 30% of video duration, whichever is smaller
-            const thumbnailTime = Math.min(1, video.duration * 0.3);
-            videoElement.currentTime = thumbnailTime;
-        });
-        
-        videoElement.addEventListener('click', (e) => e.stopPropagation());
         card.addEventListener('click', () => openVideoModal(video));
         container.appendChild(card);
     });

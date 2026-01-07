@@ -226,6 +226,46 @@ def search_videos(query: str = "", skip: int = 0, limit: int = 20):
         type=v['type']
     ) for v in paginated]
 
+@app.get("/api/thumbnail/{video_id}")
+def get_video_thumbnail(video_id: str):
+    """Get video thumbnail - extract frame from video"""
+    import subprocess
+    import tempfile
+    
+    all_videos = get_all_videos()
+    
+    for video in all_videos:
+        if video['video_id'] == video_id:
+            file_path = os.path.join(VIDEOS_DIR, video['file_path'])
+            if os.path.exists(file_path):
+                # Create thumbnails directory if it doesn't exist
+                thumbnails_dir = os.path.join(VIDEOS_DIR, "thumbnails")
+                os.makedirs(thumbnails_dir, exist_ok=True)
+                
+                # Check if thumbnail already exists
+                thumbnail_path = os.path.join(thumbnails_dir, f"{video_id}.jpg")
+                
+                if not os.path.exists(thumbnail_path):
+                    # Generate thumbnail using ffmpeg at 1 second mark
+                    try:
+                        subprocess.run([
+                            'ffmpeg',
+                            '-ss', '1',  # Seek to 1 second
+                            '-i', file_path,
+                            '-vframes', '1',  # Extract 1 frame
+                            '-vf', 'scale=320:-1',  # Scale to width 320, keep aspect ratio
+                            '-y',  # Overwrite if exists
+                            thumbnail_path
+                        ], check=True, capture_output=True, timeout=10)
+                    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+                        # If ffmpeg fails or doesn't exist, return a placeholder
+                        # Create a simple placeholder image
+                        raise HTTPException(status_code=404, detail="Could not generate thumbnail")
+                
+                return FileResponse(thumbnail_path, media_type="image/jpeg")
+    
+    raise HTTPException(status_code=404, detail="Video not found")
+
 @app.get("/api/video/{video_id}")
 def get_video_file(video_id: str):
     """Get video file stream"""
