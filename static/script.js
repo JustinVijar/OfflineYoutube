@@ -225,12 +225,6 @@ async function loadMoreShorts() {
 
 function renderVideos(videos) {
     const container = document.getElementById('videos-grid');
-    // Only clear on initial load (videosPage will be 0 before incrementing)
-    // After loadContent or loadMoreVideos, videosPage is already incremented
-    // So we check the current content instead
-    if (container.children.length === 0 && videosPage === 0) {
-        container.innerHTML = '';
-    }
 
     videos.forEach(video => {
         const card = document.createElement('div');
