@@ -14,7 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setupTabs();
     loadContent();  // Single request for both videos and shorts
     setupSearch();
-    setupInfiniteScroll();
 });
 
 function setupTabs() {
@@ -24,54 +23,6 @@ function setupTabs() {
             switchTab(tabName);
         });
     });
-}
-
-function setupInfiniteScroll() {
-    let scrollListener = null;
-    
-    const handleScroll = () => {
-        // Only trigger on videos tab
-        if (currentTab !== 'videos') return;
-        
-        // Get the actual scroll height of the document
-        const windowHeight = window.innerHeight;
-        const documentHeight = document.documentElement.scrollHeight;
-        const scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-        
-        // Calculate how far from bottom (in pixels)
-        const distanceFromBottom = documentHeight - (scrollTop + windowHeight);
-        
-        // Trigger when within 500px of bottom
-        if (distanceFromBottom < 500) {
-            if (hasMoreVideos && !isLoadingContent) {
-                console.log('Loading more videos...', {
-                    windowHeight,
-                    documentHeight,
-                    scrollTop,
-                    distanceFromBottom
-                });
-                loadMoreVideos();
-            } else if (!hasMoreVideos && !document.getElementById('end-of-videos')) {
-                // Show end message if no more videos
-                const container = document.getElementById('videos-grid');
-                const endMessage = document.createElement('div');
-                endMessage.id = 'end-of-videos';
-                endMessage.className = 'no-content';
-                endMessage.style.gridColumn = '1/-1';
-                endMessage.style.padding = '40px';
-                endMessage.style.textAlign = 'center';
-                endMessage.style.fontSize = '18px';
-                endMessage.textContent = "I'm out of videos :(";
-                container.appendChild(endMessage);
-            }
-        }
-    };
-    
-    // Use passive listener for better scroll performance
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    
-    // Also check on resize
-    window.addEventListener('resize', handleScroll, { passive: true });
 }
 
 function switchTab(tabName) {
@@ -125,6 +76,9 @@ async function loadContent() {
     if (isLoadingContent) return;
     isLoadingContent = true;
 
+    const btn = document.getElementById('load-more-videos');
+    if (btn) btn.disabled = true;
+
     try {
         const videosSkip = videosPage * VIDEOS_PER_PAGE;
         const shortsSkip = shortsPage * SHORTS_PER_PAGE;
@@ -144,6 +98,12 @@ async function loadContent() {
             renderVideos(data.videos);
             videosPage++;
             hasMoreVideos = data.has_more_videos;
+            
+            if (hasMoreVideos && btn) {
+                btn.style.display = 'block';
+            } else if (btn) {
+                btn.style.display = 'none';
+            }
         } else if (videosPage === 0) {
             document.getElementById('videos-grid').innerHTML = '<div class="no-content">No videos found</div>';
         }
@@ -168,13 +128,17 @@ async function loadContent() {
         }
     } finally {
         isLoadingContent = false;
+        if (btn) btn.disabled = false;
     }
 }
 
-// Load more videos (called by infinite scroll)
+// Load more videos (called by button click)
 async function loadMoreVideos() {
     if (isLoadingContent || !hasMoreVideos) return;
     isLoadingContent = true;
+
+    const btn = document.getElementById('load-more-videos');
+    if (btn) btn.disabled = true;
 
     try {
         const videosSkip = videosPage * VIDEOS_PER_PAGE;
@@ -193,11 +157,26 @@ async function loadMoreVideos() {
             renderVideos(data.videos);
             videosPage++;
             hasMoreVideos = data.has_more_videos;
+            
+            if (!hasMoreVideos) {
+                if (btn) btn.style.display = 'none';
+                // Show end message
+                const container = document.getElementById('videos-grid');
+                const endMessage = document.createElement('div');
+                endMessage.className = 'no-content';
+                endMessage.style.gridColumn = '1/-1';
+                endMessage.style.padding = '40px';
+                endMessage.style.textAlign = 'center';
+                endMessage.style.fontSize = '18px';
+                endMessage.textContent = "I'm out of videos :(";
+                container.appendChild(endMessage);
+            }
         }
     } catch (error) {
         console.error('Error loading more videos:', error);
     } finally {
         isLoadingContent = false;
+        if (btn) btn.disabled = false;
     }
 }
 
@@ -235,12 +214,6 @@ function renderVideos(videos) {
     const container = document.getElementById('videos-grid');
     if (videosPage === 0) {
         container.innerHTML = '';
-    }
-    
-    // Remove end message if it exists when loading new videos
-    const endMessage = document.getElementById('end-of-videos');
-    if (endMessage) {
-        endMessage.remove();
     }
 
     videos.forEach(video => {
