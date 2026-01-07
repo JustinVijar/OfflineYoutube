@@ -27,16 +27,29 @@ function setupTabs() {
 }
 
 function setupInfiniteScroll() {
-    window.addEventListener('scroll', () => {
+    let scrollListener = null;
+    
+    const handleScroll = () => {
         // Only trigger on videos tab
         if (currentTab !== 'videos') return;
         
-        // Check if user is near bottom of page
-        const scrollPosition = window.innerHeight + window.scrollY;
-        const threshold = document.documentElement.scrollHeight - 200; // 200px before bottom
+        // Get the actual scroll height of the document
+        const windowHeight = window.innerHeight;
+        const documentHeight = document.documentElement.scrollHeight;
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
         
-        if (scrollPosition >= threshold) {
+        // Calculate how far from bottom (in pixels)
+        const distanceFromBottom = documentHeight - (scrollTop + windowHeight);
+        
+        // Trigger when within 500px of bottom
+        if (distanceFromBottom < 500) {
             if (hasMoreVideos && !isLoadingContent) {
+                console.log('Loading more videos...', {
+                    windowHeight,
+                    documentHeight,
+                    scrollTop,
+                    distanceFromBottom
+                });
                 loadMoreVideos();
             } else if (!hasMoreVideos && !document.getElementById('end-of-videos')) {
                 // Show end message if no more videos
@@ -47,11 +60,18 @@ function setupInfiniteScroll() {
                 endMessage.style.gridColumn = '1/-1';
                 endMessage.style.padding = '40px';
                 endMessage.style.textAlign = 'center';
+                endMessage.style.fontSize = '18px';
                 endMessage.textContent = "I'm out of videos :(";
                 container.appendChild(endMessage);
             }
         }
-    });
+    };
+    
+    // Use passive listener for better scroll performance
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    // Also check on resize
+    window.addEventListener('resize', handleScroll, { passive: true });
 }
 
 function switchTab(tabName) {
