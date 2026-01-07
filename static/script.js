@@ -33,10 +33,23 @@ function setupInfiniteScroll() {
         
         // Check if user is near bottom of page
         const scrollPosition = window.innerHeight + window.scrollY;
-        const threshold = document.documentElement.scrollHeight - 800; // 800px before bottom
+        const threshold = document.documentElement.scrollHeight - 200; // 200px before bottom
         
-        if (scrollPosition >= threshold && hasMoreVideos && !isLoadingContent) {
-            loadMoreVideos();
+        if (scrollPosition >= threshold) {
+            if (hasMoreVideos && !isLoadingContent) {
+                loadMoreVideos();
+            } else if (!hasMoreVideos && !document.getElementById('end-of-videos')) {
+                // Show end message if no more videos
+                const container = document.getElementById('videos-grid');
+                const endMessage = document.createElement('div');
+                endMessage.id = 'end-of-videos';
+                endMessage.className = 'no-content';
+                endMessage.style.gridColumn = '1/-1';
+                endMessage.style.padding = '40px';
+                endMessage.style.textAlign = 'center';
+                endMessage.textContent = "I'm out of videos :(";
+                container.appendChild(endMessage);
+            }
         }
     });
 }
@@ -200,8 +213,14 @@ async function loadMoreShorts() {
 
 function renderVideos(videos) {
     const container = document.getElementById('videos-grid');
-    if (videosPage === 1) {
+    if (videosPage === 0) {
         container.innerHTML = '';
+    }
+    
+    // Remove end message if it exists when loading new videos
+    const endMessage = document.getElementById('end-of-videos');
+    if (endMessage) {
+        endMessage.remove();
     }
 
     videos.forEach(video => {
