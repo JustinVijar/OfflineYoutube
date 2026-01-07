@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupTabs();
     loadContent();  // Single request for both videos and shorts
     setupSearch();
+    setupInfiniteScroll();
 });
 
 function setupTabs() {
@@ -22,6 +23,21 @@ function setupTabs() {
             const tabName = tab.dataset.tab;
             switchTab(tabName);
         });
+    });
+}
+
+function setupInfiniteScroll() {
+    window.addEventListener('scroll', () => {
+        // Only trigger on videos tab
+        if (currentTab !== 'videos') return;
+        
+        // Check if user is near bottom of page
+        const scrollPosition = window.innerHeight + window.scrollY;
+        const threshold = document.documentElement.scrollHeight - 800; // 800px before bottom
+        
+        if (scrollPosition >= threshold && hasMoreVideos && !isLoadingContent) {
+            loadMoreVideos();
+        }
     });
 }
 
@@ -75,9 +91,6 @@ async function openRandomShort() {
 async function loadContent() {
     if (isLoadingContent) return;
     isLoadingContent = true;
-    
-    const btn = document.getElementById('load-more-videos');
-    if (btn) btn.disabled = true;
 
     try {
         const videosSkip = videosPage * VIDEOS_PER_PAGE;
@@ -98,12 +111,6 @@ async function loadContent() {
             renderVideos(data.videos);
             videosPage++;
             hasMoreVideos = data.has_more_videos;
-            
-            if (hasMoreVideos && btn) {
-                btn.style.display = 'block';
-            } else if (btn) {
-                btn.style.display = 'none';
-            }
         } else if (videosPage === 0) {
             document.getElementById('videos-grid').innerHTML = '<div class="no-content">No videos found</div>';
         }
@@ -128,17 +135,13 @@ async function loadContent() {
         }
     } finally {
         isLoadingContent = false;
-        if (btn) btn.disabled = false;
     }
 }
 
-// Load more videos (called when clicking load more button)
+// Load more videos (called by infinite scroll)
 async function loadMoreVideos() {
     if (isLoadingContent || !hasMoreVideos) return;
     isLoadingContent = true;
-    
-    const btn = document.getElementById('load-more-videos');
-    if (btn) btn.disabled = true;
 
     try {
         const videosSkip = videosPage * VIDEOS_PER_PAGE;
@@ -157,16 +160,11 @@ async function loadMoreVideos() {
             renderVideos(data.videos);
             videosPage++;
             hasMoreVideos = data.has_more_videos;
-            
-            if (!hasMoreVideos && btn) {
-                btn.style.display = 'none';
-            }
         }
     } catch (error) {
         console.error('Error loading more videos:', error);
     } finally {
         isLoadingContent = false;
-        if (btn) btn.disabled = false;
     }
 }
 
