@@ -108,6 +108,57 @@ def get_all_videos() -> List[Dict[str, Any]]:
     
     return videos
 
+class ContentResponse(BaseModel):
+    videos: List[VideoItem]
+    shorts: List[VideoItem]
+    total_videos: int
+    total_shorts: int
+    has_more_videos: bool
+    has_more_shorts: bool
+
+@app.get("/api/content")
+def get_content(videos_skip: int = 0, videos_limit: int = 20, shorts_skip: int = 0, shorts_limit: int = 10):
+    """Get all content (videos + shorts) with pagination in a single request"""
+    all_content = get_all_videos()
+    
+    # Separate videos and shorts
+    all_videos_list = [v for v in all_content if v['type'] == 'video']
+    all_shorts_list = [v for v in all_content if v['type'] == 'shorts']
+    
+    # Randomize with consistent seed
+    random.seed(42)
+    random.shuffle(all_videos_list)
+    random.seed(42)
+    random.shuffle(all_shorts_list)
+    
+    # Paginate videos
+    paginated_videos = all_videos_list[videos_skip:videos_skip + videos_limit]
+    # Paginate shorts
+    paginated_shorts = all_shorts_list[shorts_skip:shorts_skip + shorts_limit]
+    
+    return {
+        "videos": [VideoItem(
+            video_id=v['video_id'],
+            title=v['title'],
+            channel=v['channel'],
+            duration=v['duration'],
+            thumbnail_path="/static/placeholder.jpg",
+            type=v['type']
+        ) for v in paginated_videos],
+        "shorts": [VideoItem(
+            video_id=v['video_id'],
+            title=v['title'],
+            channel=v['channel'],
+            duration=v['duration'],
+            thumbnail_path="/static/placeholder.jpg",
+            type=v['type']
+        ) for v in paginated_shorts],
+        "total_videos": len(all_videos_list),
+        "total_shorts": len(all_shorts_list),
+        "has_more_videos": videos_skip + videos_limit < len(all_videos_list),
+        "has_more_shorts": shorts_skip + shorts_limit < len(all_shorts_list)
+    }
+
 @app.get("/api/videos", response_model=List[VideoItem])
 def get_videos(skip: int = 0, limit: int = 20):
     """Get videos with pagination (randomized)"""

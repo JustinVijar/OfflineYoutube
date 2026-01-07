@@ -5,14 +5,14 @@ let videosPage = 0;
 let shortsPage = 0;
 const VIDEOS_PER_PAGE = 20;
 const SHORTS_PER_PAGE = 10;
-let isLoadingVideos = false;
-let isLoadingShorts = false;
+let isLoadingContent = false;
+let hasMoreVideos = true;
+let hasMoreShorts = true;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     setupTabs();
-    loadVideos();
-    loadShorts();  // Load initial batch of shorts
+    loadContent();  // Single request for both videos and shorts
     setupSearch();
 });
 
@@ -45,13 +45,17 @@ function switchTab(tabName) {
 }
 
 async function openRandomShort() {
-    // Load first batch of shorts with pagination
+    // Load first batch of shorts if not already loaded
     if (allShortsLoaded.length === 0) {
         try {
-            const response = await fetch(`${API_BASE}/api/shorts?skip=0&limit=${SHORTS_PER_PAGE * 5}`);
-            const shorts = await response.json();
-            if (shorts && shorts.length > 0) {
-                allShortsLoaded = shorts;
+            const response = await fetch(
+                `${API_BASE}/api/content?videos_skip=0&videos_limit=0&shorts_skip=0&shorts_limit=${SHORTS_PER_PAGE * 5}`
+            );
+            const data = await response.json();
+            if (data.shorts && data.shorts.length > 0) {
+                allShortsLoaded = data.shorts;
+                shortsPage = Math.ceil(data.shorts.length / SHORTS_PER_PAGE);
+                hasMoreShorts = data.has_more_shorts;
             }
         } catch (error) {
             console.error('Error loading shorts:', error);
@@ -68,35 +72,50 @@ async function openRandomShort() {
     }
 }
 
-async function loadVideos() {
-    if (isLoadingVideos) return;
-    isLoadingVideos = true;
+async function loadContent() {
+    if (isLoadingContent) return;
+    isLoadingContent = true;
     
     const btn = document.getElementById('load-more-videos');
     if (btn) btn.disabled = true;
 
     try {
-        const skip = videosPage * VIDEOS_PER_PAGE;
-        const response = await fetch(`${API_BASE}/api/videos?skip=${skip}&limit=${VIDEOS_PER_PAGE}`);
+        const videosSkip = videosPage * VIDEOS_PER_PAGE;
+        const shortsSkip = shortsPage * SHORTS_PER_PAGE;
+        
+        const response = await fetch(
+            `${API_BASE}/api/content?videos_skip=${videosSkip}&videos_limit=${VIDEOS_PER_PAGE}&shorts_skip=${shortsSkip}&shorts_limit=${SHORTS_PER_PAGE}`
+        );
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
         
-        const videos = await response.json();
+        const data = await response.json();
         
-        if (videos && videos.length > 0) {
-            renderVideos(videos);
+        // Handle videos
+        if (data.videos && data.videos.length > 0) {
+            renderVideos(data.videos);
             videosPage++;
+            hasMoreVideos = data.has_more_videos;
             
-            if (videos.length === VIDEOS_PER_PAGE && btn) {
+            if (hasMoreVideos && btn) {
                 btn.style.display = 'block';
+            } else if (btn) {
+                btn.style.display = 'none';
             }
         } else if (videosPage === 0) {
             document.getElementById('videos-grid').innerHTML = '<div class="no-content">No videos found</div>';
         }
+        
+        // Handle shorts
+        if (data.shorts && data.shorts.length > 0) {
+            allShortsLoaded = allShortsLoaded.concat(data.shorts);
+            shortsPage++;
+            hasMoreShorts = data.has_more_shorts;
+        }
     } catch (error) {
-        console.error('Error loading videos:', error);
+        console.error('Error loading content:', error);
         if (videosPage === 0) {
             document.getElementById('videos-grid').innerHTML = `
                 <div style="grid-column: 1/-1;">
@@ -108,30 +127,76 @@ async function loadVideos() {
             `;
         }
     } finally {
-        isLoadingVideos = false;
+        isLoadingContent = false;
         if (btn) btn.disabled = false;
     }
 }
 
-async function loadShorts() {
-    // Lazy load shorts with pagination
-    if (isLoadingShorts) return;
-    isLoadingShorts = true;
+// Load more videos (called when clicking load more button)
+async function loadMoreVideos() {
+    if (isLoadingContent || !hasMoreVideos) return;
+    isLoadingContent = true;
+    
+    const btn = document.getElementById('load-more-videos');
+    if (btn) btn.disabled = true;
 
     try {
-        const skip = shortsPage * SHORTS_PER_PAGE;
-        const response = await fetch(`${API_BASE}/api/shorts?skip=${skip}&limit=${SHORTS_PER_PAGE}`);
-        const shorts = await response.json();
+        const videosSkip = videosPage * VIDEOS_PER_PAGE;
         
-        if (shorts && shorts.length > 0) {
-            // Append to existing shorts
-            allShortsLoaded = allShortsLoaded.concat(shorts);
-            shortsPage++;
+        const response = await fetch(
+            `${API_BASE}/api/content?videos_skip=${videosSkip}&videos_limit=${VIDEOS_PER_PAGE}&shorts_skip=0&shorts_limit=0`
+        );
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.videos && data.videos.length > 0) {
+            renderVideos(data.videos);
+            videosPage++;
+            hasMoreVideos = data.has_more_videos;
+            
+            if (!hasMoreVideos && btn) {
+                btn.style.display = 'none';
+            }
         }
     } catch (error) {
-        console.error('Error loading shorts:', error);
+        console.error('Error loading more videos:', error);
     } finally {
-        isLoadingShorts = false;
+        isLoadingContent = false;
+        if (btn) btn.disabled = false;
+    }
+}
+
+// Load more shorts (called when navigating shorts)
+async function loadMoreShorts() {
+    if (isLoadingContent || !hasMoreShorts) return;
+    isLoadingContent = true;
+
+    try {
+        const shortsSkip = shortsPage * SHORTS_PER_PAGE;
+        
+        const response = await fetch(
+            `${API_BASE}/api/content?videos_skip=0&videos_limit=0&shorts_skip=${shortsSkip}&shorts_limit=${SHORTS_PER_PAGE}`
+        );
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.shorts && data.shorts.length > 0) {
+            allShortsLoaded = allShortsLoaded.concat(data.shorts);
+            shortsPage++;
+            hasMoreShorts = data.has_more_shorts;
+        }
+    } catch (error) {
+        console.error('Error loading more shorts:', error);
+    } finally {
+        isLoadingContent = false;
     }
 }
 
@@ -337,8 +402,8 @@ async function nextShort() {
         await openShortsModal(shortsData[currentShortIndex], true);
         
         // Load more shorts if getting close to end
-        if (currentShortIndex >= shortsData.length - 5) {
-            loadShorts();
+        if (currentShortIndex >= shortsData.length - 5 && hasMoreShorts) {
+            loadMoreShorts();
         }
     }
 }
