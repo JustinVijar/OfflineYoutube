@@ -32,7 +32,10 @@
         <!-- Search Tab -->
         <div id="search-tab" class="tab-content">
             <div class="search-container">
-                <input type="text" id="search-input" class="search-bar" placeholder="Search videos, shorts, or channels...">
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <input type="text" id="search-input" class="search-bar" placeholder="Search videos, shorts, or channels..." style="flex: 1;">
+                    <button id="search-button" class="search-btn" style="padding: 12px 24px; background-color: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">Search</button>
+                </div>
                 <div id="search-results" class="search-results"></div>
                 <button class="load-more-btn search-load-more" style="display: none;" onclick="loadSearchResults()">Load More Results</button>
             </div>

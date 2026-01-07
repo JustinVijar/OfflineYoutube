@@ -225,7 +225,10 @@ async function loadMoreShorts() {
 
 function renderVideos(videos) {
     const container = document.getElementById('videos-grid');
-    if (videosPage === 0) {
+    // Only clear on initial load (videosPage will be 0 before incrementing)
+    // After loadContent or loadMoreVideos, videosPage is already incremented
+    // So we check the current content instead
+    if (container.children.length === 0 && videosPage === 0) {
         container.innerHTML = '';
     }
 
@@ -564,18 +567,32 @@ const SEARCH_RESULTS_PER_PAGE = 20;
 
 function setupSearch() {
     const searchInput = document.getElementById('search-input');
-    searchInput.addEventListener('input', (e) => {
-        const query = e.target.value.trim();
+    const searchButton = document.getElementById('search-button');
+    
+    const performSearch = () => {
+        const query = searchInput.value.trim();
         if (query !== currentSearchQuery) {
             currentSearchQuery = query;
             searchPage = 0;
             
             if (!query) {
-                document.getElementById('search-results').innerHTML = '<div class="search-no-results">Start typing to search for videos, shorts, or channels...</div>';
+                document.getElementById('search-results').innerHTML = '<div class="search-no-results">Enter a search term and click Search...</div>';
             } else {
                 document.getElementById('search-results').innerHTML = '';
                 loadSearchResults();
             }
+        }
+    };
+    
+    // Search on button click
+    if (searchButton) {
+        searchButton.addEventListener('click', performSearch);
+    }
+    
+    // Also search on Enter key
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            performSearch();
         }
     });
 }
