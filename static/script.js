@@ -14,6 +14,12 @@ document.addEventListener('DOMContentLoaded', () => {
     setupTabs();
     loadContent();  // Single request for both videos and shorts
     setupSearch();
+    
+    // Setup load more button
+    const loadMoreBtn = document.getElementById('load-more-videos');
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', loadMoreVideos);
+    }
 });
 
 function setupTabs() {
