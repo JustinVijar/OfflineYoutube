@@ -64,7 +64,7 @@ def get_all_videos() -> List[Dict[str, Any]]:
                                 videos.append({
                                     "video_id": meta.get("video_id", video_id),
                                     "title": meta.get("title", base_name),
-                                    "channel": meta.get("channel", channel_dir),
+                                    "channel": meta.get("channel") or channel_dir,
                                     "duration": meta.get("duration", 0),
                                     "type": "video",
                                     "file_path": os.path.join(channel_dir, "videos", video_file),
@@ -97,7 +97,7 @@ def get_all_videos() -> List[Dict[str, Any]]:
                                 videos.append({
                                     "video_id": meta.get("video_id", video_id),
                                     "title": meta.get("title", base_name),
-                                    "channel": meta.get("channel", channel_dir),
+                                    "channel": meta.get("channel") or channel_dir,
                                     "duration": meta.get("duration", 0),
                                     "type": "shorts",
                                     "file_path": os.path.join(channel_dir, "shorts", video_file),
