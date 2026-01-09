@@ -184,6 +184,23 @@ async function loadMoreVideos() {
                 endMessage.textContent = "I'm out of videos :(";
                 container.appendChild(endMessage);
             }
+        } else {
+            // No videos returned - we've reached the end
+            hasMoreVideos = false;
+            if (btn) btn.style.display = 'none';
+            
+            const container = document.getElementById('videos-grid');
+            // Check if message doesn't already exist
+            if (!container.querySelector('.no-more-videos-message')) {
+                const endMessage = document.createElement('div');
+                endMessage.className = 'no-content no-more-videos-message';
+                endMessage.style.gridColumn = '1/-1';
+                endMessage.style.padding = '40px';
+                endMessage.style.textAlign = 'center';
+                endMessage.style.fontSize = '18px';
+                endMessage.textContent = "No more videos available";
+                container.appendChild(endMessage);
+            }
         }
     } catch (error) {
         console.error('Error loading more videos:', error);

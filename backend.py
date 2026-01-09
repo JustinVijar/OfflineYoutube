@@ -208,7 +208,7 @@ def search_videos(query: str = "", skip: int = 0, limit: int = 20):
     query_lower = query.lower()
     results = [
         v for v in all_videos
-        if query_lower in v['title'].lower() or query_lower in v['channel'].lower()
+        if query_lower in v['title'].lower() or query_lower in (v.get('channel') or '').lower()
     ]
     
     # Randomize for variety
