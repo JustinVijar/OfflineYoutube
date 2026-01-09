@@ -170,27 +170,19 @@ async function loadMoreVideos() {
             renderVideos(data.videos);
             videosPage++;
             hasMoreVideos = data.has_more_videos;
-            
-            if (!hasMoreVideos) {
-                if (btn) btn.style.display = 'none';
-                // Show end message
-                const container = document.getElementById('videos-grid');
-                const endMessage = document.createElement('div');
-                endMessage.className = 'no-content';
-                endMessage.style.gridColumn = '1/-1';
-                endMessage.style.padding = '40px';
-                endMessage.style.textAlign = 'center';
-                endMessage.style.fontSize = '18px';
-                endMessage.textContent = "I'm out of videos :(";
-                container.appendChild(endMessage);
-            }
-        } else {
-            // No videos returned - we've reached the end
+        }
+        
+        // Check if there are no more videos to load
+        if (!data.has_more_videos) {
             hasMoreVideos = false;
-            if (btn) btn.style.display = 'none';
             
+            // Remove the Load More button
+            if (btn) {
+                btn.remove();
+            }
+            
+            // Add "No more videos" message at the bottom
             const container = document.getElementById('videos-grid');
-            // Check if message doesn't already exist
             if (!container.querySelector('.no-more-videos-message')) {
                 const endMessage = document.createElement('div');
                 endMessage.className = 'no-content no-more-videos-message';
@@ -198,7 +190,7 @@ async function loadMoreVideos() {
                 endMessage.style.padding = '40px';
                 endMessage.style.textAlign = 'center';
                 endMessage.style.fontSize = '18px';
-                endMessage.textContent = "No more videos available";
+                endMessage.textContent = "No more videos";
                 container.appendChild(endMessage);
             }
         }
